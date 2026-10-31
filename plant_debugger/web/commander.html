@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plant Debugger — Operations Commander</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #14171a;
+      --card-bg: #1e2227;
+      --card-border: #2e343d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #ff6b35;
+      --accent-subtle: #ff6b351a;
+      --success: #238636;
+      --success-glow: #23863633;
+      --warning: #d29922;
+      --danger: #da3633;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #0d1117;
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-badge {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .title-area h1 { font-size: 17px; font-weight: 700; }
+    .title-area p { font-size: 12px; color: var(--text-muted); }
+    .header-actions { display: flex; align-items: center; gap: 14px; }
+    .status-pill {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      background: #30363d;
+      color: #c9d1d9;
+    }
+    .status-pill.DETECTED { background: #b0880033; color: #f2cc60; border: 1px solid #d29922; }
+    .status-pill.PLANNING { background: #1f6feb33; color: #58a6ff; border: 1px solid #388bfd; }
+    .status-pill.AWAITING_FIELD { background: #ff6b3533; color: #ff8e61; border: 1px solid var(--accent); }
+    .status-pill.VERIFYING { background: #8957e533; color: #bc8cff; border: 1px solid #8957e5; }
+    .status-pill.RESOLVED { background: var(--success-glow); color: #3fb950; border: 1px solid var(--success); }
+    .status-pill.ESCALATED, .status-pill.BLOCKED { background: #da363333; color: #f85149; border: 1px solid var(--danger); }
+
+    .btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid var(--card-border);
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: #30363d; color: #fff; }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: #e85923; }
+
+    main {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 20px;
+      flex: 1;
+    }
+    .col { display: flex; flex-direction: column; gap: 20px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      padding: 12px 16px;
+      background: #181b20;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .card-body { padding: 16px; }
+
+    /* Schematic */
+    .schematic-box {
+      background: #111417;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 16px;
+      position: relative;
+    }
+    .svg-schematic { width: 100%; height: 210px; display: block; }
+    .telemetry-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .tele-cell {
+      background: #161a1f;
+      border: 1px solid #282e37;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .tele-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+    .tele-val { font-size: 18px; font-weight: 700; font-family: var(--font-mono); margin-top: 4px; }
+    .tele-unit { font-size: 11px; font-weight: 400; color: var(--text-muted); }
+
+    /* Decision Trace */
+    .trace-item {
+      background: #15181c;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .trace-turn-hdr {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .trace-step {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #58a6ff;
+      margin-bottom: 4px;
+    }
+    .hypo-list { margin-top: 8px; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .hypo-pill {
+      font-size: 12px;
+      background: #21262d;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Active Task */
+    .task-banner {
+      background: #251d16;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 14px;
+    }
+    .task-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .task-title { font-size: 15px; font-weight: 700; margin: 8px 0 6px 0; }
+    .task-notes { font-size: 12px; color: #d2a8ff; margin-top: 6px; }
+
+    /* Site Knowledge & Audit */
+    .sk-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
+    .sk-item {
+      background: #161a1f;
+      border-left: 3px solid #3fb950;
+      padding: 8px 12px;
+      font-size: 12px;
+      border-radius: 0 4px 4px 0;
+    }
+    .sk-meta { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+
+    .audit-trail { max-height: 240px; overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+    .audit-row {
+      padding: 6px 0;
+      border-bottom: 1px solid #252b33;
+      display: grid;
+      grid-template-columns: 50px 90px 1fr;
+      gap: 8px;
+    }
+    .audit-seq { color: var(--text-muted); }
+    .audit-actor { color: #f0883e; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-area">
+      <div class="logo-badge">PLANT DEBUGGER</div>
+      <div class="title-area">
+        <h1>Cooling Water Loop P-101 Commander</h1>
+        <p>Brownfield Operations Lead Console · Resumable Google ADK Dynamic Workflow</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="incidentStatus" class="status-pill">MONITORING</span>
+      <a href="/operator" target="_blank" class="btn">📱 Open Mobile Operator UI</a>
+      <button class="btn btn-primary" onclick="triggerIncident()">⚡ Inject P-101 Anomaly</button>
+      <button class="btn" onclick="resetSim()">↺ Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT COLUMN -->
+    <div class="col">
+      <!-- P&ID Schematic & Telemetry -->
+      <div class="card">
+        <div class="card-header">
+          <span>Process Schematic (P&ID) & Live Telemetry</span>
+          <span id="lastUpdated" style="font-size:11px;">Connecting...</span>
+        </div>
+        <div class="card-body">
+          <div class="schematic-box">
+            <svg class="svg-schematic" viewBox="0 0 760 210">
+              <!-- Piping Lines -->
+              <line x1="40" y1="120" x2="220" y2="120" stroke="#484f58" stroke-width="8" />
+              <line x1="220" y1="120" x2="520" y2="120" stroke="#484f58" stroke-width="8" />
+              <line x1="520" y1="120" x2="720" y2="120" stroke="#484f58" stroke-width="8" />
+              <!-- Bypass line -->
+              <path d="M 270 120 L 270 45 L 470 45 L 470 120" fill="none" stroke="#e3b341" stroke-width="6" stroke-dasharray="6,4" />
+
+              <!-- Pump P-101 -->
+              <circle cx="140" cy="120" r="32" fill="#21262d" stroke="#58a6ff" stroke-width="4" />
+              <path d="M 120 145 L 160 120 L 120 95 Z" fill="#58a6ff" />
+              <text x="140" y="172" fill="#8b949e" font-size="12" font-weight="700" text-anchor="middle">PUMP P-101</text>
+
+              <!-- Strainer F-17 -->
+              <rect x="340" y="95" width="60" height="50" rx="6" fill="#21262d" stroke="#f0883e" stroke-width="3" id="f17Box" />
+              <text x="370" y="125" fill="#f0883e" font-size="13" font-weight="700" text-anchor="middle">F-17</text>
+              <text x="370" y="165" fill="#8b949e" font-size="11" text-anchor="middle">Strainer</text>
+              <!-- Local DP Indicator representation -->
+              <line x1="370" y1="95" x2="370" y2="75" stroke="#f0883e" stroke-width="3" />
+              <circle cx="370" cy="70" r="10" fill="#161b22" stroke="#f0883e" stroke-width="2" id="dpGaugeCircle" />
+              <text x="370" y="55" fill="#8b949e" font-size="10" text-anchor="middle">Local ΔP</text>
+
+              <!-- Manual Bypass BV-104 -->
+              <polygon points="350,30 390,60 350,60 390,30" fill="#da3633" stroke="#fff" stroke-width="1.5" id="bv104Poly" />
+              <text x="370" y="24" fill="#ff7b72" font-size="12" font-weight="700" text-anchor="middle">BV-104</text>
+              <text x="370" y="78" fill="#e3b341" font-size="11" font-family="monospace" text-anchor="middle" id="bvPctText">0% OPEN</text>
+
+              <!-- Flow Meter FT-101 -->
+              <circle cx="610" cy="120" r="22" fill="#21262d" stroke="#3fb950" stroke-width="3" />
+              <text x="610" y="125" fill="#3fb950" font-size="11" font-weight="700" text-anchor="middle">FT-101</text>
+              <text x="610" y="160" fill="#8b949e" font-size="11" text-anchor="middle">Flow Meter</text>
+            </svg>
+          </div>
+
+          <div class="telemetry-bar">
+            <div class="tele-cell">
+              <div class="tele-label">FT-101 Flow</div>
+              <div class="tele-val" id="flowVal">-- <span class="tele-unit">m³/h</span></div>
+            </div>
+            <div class="tele-cell">
+              <div class="tele-label">P-101 Discharge</div>
+              <div class="tele-val" id="pressVal">-- <span class="tele-unit">bar</span></div>
+            </div>
+            <div class="tele-cell">
+              <div class="tele-label">P-101 Vibration</div>
+              <div class="tele-val" id="vibVal">-- <span class="tele-unit">mm/s</span></div>
+            </div>
+            <div class="tele-cell">
+              <div class="tele-label">Motor Current</div>
+              <div class="tele-val" id="currVal">-- <span class="tele-unit">A</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADK Decision Trace -->
+      <div class="card">
+        <div class="card-header">
+          <span>ADK Decision Trace · 1 · Plant Evidence → 2 · Diagnosis Update → 3 · Next Field Task</span>
+          <span id="turnCounter" style="font-size:11px;">Turn 0</span>
+        </div>
+        <div class="card-body">
+          <div id="traceContainer">
+            <p style="color:var(--text-muted); font-size:13px;">No active incident. Inject an anomaly or wait for telemetry alert.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col">
+      <!-- Active Field Task -->
+      <div class="card">
+        <div class="card-header">
+          <span>Current Field Action / Work Order</span>
+          <span id="taskStatusPill" class="status-pill">NONE</span>
+        </div>
+        <div class="card-body">
+          <div id="activeTaskContent">
+            <p style="color:var(--text-muted); font-size:13px;">Awaiting field dispatch...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Site Knowledge -->
+      <div class="card">
+        <div class="card-header">
+          <span>Durable Site Knowledge Repository (Learned from Operators)</span>
+          <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="resetKnowledge()">Deactivate All</button>
+        </div>
+        <div class="card-body">
+          <div class="sk-list" id="skList">
+            <p style="color:var(--text-muted); font-size:12px;">No human assertions stored yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tamper-Evident Audit Trail -->
+      <div class="card">
+        <div class="card-header">
+          <span>Unified Immutable Audit Trail (SHA-256 Chain)</span>
+          <span id="auditCount" style="font-size:11px;">0 Events</span>
+        </div>
+        <div class="card-body">
+          <div class="audit-trail" id="auditTrail"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let activeIncidentId = null;
+
+    async function poll() {
+      try {
+        // 1. Telemetry
+        const tRes = await fetch('/api/telemetry?last_n=10');
+        const tData = await tRes.json();
+        if (tData.latest) {
+          const l = tData.latest;
+          document.getElementById('flowVal').innerHTML = `${l.ft101_flow_m3h.toFixed(1)} <span class="tele-unit">m³/h</span>`;
+          document.getElementById('pressVal').innerHTML = `${l.p101_discharge_bar.toFixed(2)} <span class="tele-unit">bar</span>`;
+          document.getElementById('vibVal').innerHTML = `${l.p101_vibration_mm_s.toFixed(1)} <span class="tele-unit">mm/s</span>`;
+          document.getElementById('currVal').innerHTML = `${l.p101_motor_current_a.toFixed(1)} <span class="tele-unit">A</span>`;
+          document.getElementById('lastUpdated').innerText = `Synced ${new Date().toLocaleTimeString()}`;
+
+          // Flow color warning
+          const flowEl = document.getElementById('flowVal');
+          if (l.ft101_flow_m3h < 85) flowEl.style.color = '#ff7b72';
+          else if (l.ft101_flow_m3h >= 90) flowEl.style.color = '#3fb950';
+          else flowEl.style.color = '#d29922';
+        }
+
+        // 2. Incident List
+        const incRes = await fetch('/api/incidents?limit=1');
+        const incidents = await incRes.json();
+        if (incidents.length > 0) {
+          const inc = incidents[0];
+          activeIncidentId = inc.id;
+          renderIncident(inc);
+        }
+
+        // 3. Site Knowledge
+        const skRes = await fetch('/api/knowledge');
+        const sks = await skRes.json();
+        renderKnowledge(sks);
+
+        // 4. Audit Trail
+        const aRes = await fetch('/api/audit?limit=60');
+        const audits = await aRes.json();
+        renderAudit(audits);
+
+      } catch (e) {
+        console.error("Poll failed", e);
+      }
+    }
+
+    function renderIncident(inc) {
+      const statusPill = document.getElementById('incidentStatus');
+      statusPill.innerText = inc.status;
+      statusPill.className = `status-pill ${inc.status}`;
+
+      document.getElementById('turnCounter').innerText = `Turn ${inc.agent_turns} · Engine: ${inc.engine}`;
+      document.getElementById('bvPctText').innerText = `${inc.bv104_known_pct}% OPEN`;
+
+      // Trace rendering
+      const traceBox = document.getElementById('traceContainer');
+      if (inc.trace && inc.trace.length > 0) {
+        traceBox.innerHTML = inc.trace.map(t => `
+          <div class="trace-item">
+            <div class="trace-turn-hdr">
+              <span>TURN ${t.turn} · ${t.engine.toUpperCase()}</span>
+              <span>${t.decision.toUpperCase()}</span>
+            </div>
+            <div class="trace-step">1 · NEW EVIDENCE: ${(t.new_evidence || []).join('; ') || 'Telemetry snapshot'}</div>
+            <div style="margin: 4px 0;"><strong>2 · DIAGNOSIS UPDATE:</strong> ${t.diagnosis ? t.diagnosis.summary : 'Evaluating'}</div>
+            <div style="color:#d2a8ff; font-weight:600;">3 · NEXT STEP: ${t.next_step || 'Awaiting evidence'}</div>
+            ${t.diagnosis && t.diagnosis.hypotheses ? `
+              <ul class="hypo-list">
+                ${t.diagnosis.hypotheses.map(h => `
+                  <li class="hypo-pill">
+                    <span>${h.name}</span>
+                    <strong>${(h.confidence * 100).toFixed(0)}%</strong>
+                  </li>
+                `).join('')}
+              </ul>
+            ` : ''}
+          </div>
+        `).join('');
+      }
+
+      // Tasks
+      fetch(`/api/incidents/${inc.id}/tasks`).then(r => r.json()).then(tasks => {
+        const active = tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'CANCELLED')[0] || tasks[tasks.length - 1];
+        const taskBox = document.getElementById('activeTaskContent');
+        const pill = document.getElementById('taskStatusPill');
+        if (active) {
+          pill.innerText = active.status;
+          pill.className = `status-pill ${active.status}`;
+          taskBox.innerHTML = `
+            <div class="task-banner">
+              <span class="task-badge">${active.kind}</span>
+              <div class="task-title">${active.title}</div>
+              <p style="font-size:13px; color:#c9d1d9;">${active.rationale || ''}</p>
+              ${active.access_note ? `<div class="task-notes">📍 Site Note: ${active.access_note}</div>` : ''}
+              <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+                Instructions:<br/>
+                ${(active.instructions || []).map(i => `• ${i}`).join('<br/>')}
+              </div>
+            </div>
+          `;
+        } else if (inc.status === 'RESOLVED') {
+          pill.innerText = 'RESOLVED';
+          pill.className = 'status-pill RESOLVED';
+          taskBox.innerHTML = `
+            <div style="background:#23863622; border:1px solid #238636; border-radius:6px; padding:16px;">
+              <h3 style="color:#3fb950; font-size:16px; margin-bottom:6px;">✓ INCIDENT RESOLVED</h3>
+              <p style="font-size:13px;">${inc.resolution || 'Deterministic recovery verifier confirmed sustained flow.'}</p>
+            </div>
+          `;
+        }
+      });
+    }
+
+    function renderKnowledge(sks) {
+      const box = document.getElementById('skList');
+      if (!sks || sks.length === 0) {
+        box.innerHTML = '<p style="color:var(--text-muted); font-size:12px;">No human assertions stored yet.</p>';
+        return;
+      }
+      box.innerHTML = sks.map(k => `
+        <div class="sk-item">
+          <div class="sk-meta">ASSET: ${k.asset} · Author: ${k.author}</div>
+          <div>${k.text}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderAudit(audits) {
+      document.getElementById('auditCount').innerText = `${audits.length} Events`;
+      const box = document.getElementById('auditTrail');
+      box.innerHTML = audits.map(a => `
+        <div class="audit-row">
+          <span class="audit-seq">#${a.seq}</span>
+          <span class="audit-actor">${a.actor}</span>
+          <span>${a.summary}</span>
+        </div>
+      `).reverse().join('');
+    }
+
+    async function triggerIncident() {
+      await fetch('/api/incidents/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fault: 'f17_restriction' })
+      });
+      poll();
+    }
+
+    async function resetSim() {
+      await fetch('/api/incidents/reset', { method: 'POST' });
+      poll();
+    }
+
+    async function resetKnowledge() {
+      await fetch('/api/knowledge/reset', { method: 'POST' });
+      poll();
+    }
+
+    setInterval(poll, 1500);
+    poll();
+  </script>
+</body>
+</html>
+

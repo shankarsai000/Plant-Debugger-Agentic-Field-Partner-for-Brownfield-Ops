@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plant Debugger — Field Operator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card-bg: #ffffff;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --text-muted: #656d76;
+      --accent: #d9480f;
+      --accent-subtle: #fff4e6;
+      --primary: #0969da;
+      --success: #1a7f37;
+      --warning: #9a6700;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      padding-bottom: 40px;
+    }
+    header {
+      background: #ffffff;
+      border-bottom: 2px solid #e1e4e8;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+    .brand-title { font-size: 14px; font-weight: 700; }
+    .live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #2da44e;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    .container { max-width: 520px; margin: 0 auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card-header {
+      padding: 10px 14px;
+      background: #f6f8fa;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .card-body { padding: 14px; }
+
+    /* Telemetry glance */
+    .tele-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tele-item { background: #f6f8fa; border: 1px solid #e1e4e8; padding: 8px 12px; border-radius: 6px; }
+    .tele-item span { font-size: 11px; color: var(--text-muted); display: block; }
+    .tele-item strong { font-size: 17px; font-family: var(--font-mono); }
+
+    /* Work Order Card */
+    .wo-card { border: 2px solid var(--accent); }
+    .wo-badge {
+      display: inline-block;
+      background: var(--accent-subtle);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .wo-title { font-size: 17px; font-weight: 800; line-height: 1.3; margin-bottom: 6px; }
+    .wo-rationale { font-size: 13px; color: #57606a; margin-bottom: 12px; line-height: 1.4; }
+
+    .instruction-box {
+      background: #fdf8f6;
+      border-left: 3px solid var(--accent);
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 13px;
+    }
+    .instruction-box ol { padding-left: 18px; margin-top: 4px; }
+    .instruction-box li { margin-bottom: 4px; }
+
+    .safety-box {
+      background: #fff8c5;
+      border: 1px solid #d4a72c;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      margin-bottom: 14px;
+      color: #573a08;
+    }
+    .safety-box strong { display: block; margin-bottom: 2px; }
+
+    /* Action buttons */
+    .btn-action {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 14px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(217, 72, 15, 0.3);
+      transition: background 0.15s;
+    }
+    .btn-action:hover { background: #b83d0c; }
+    .btn-action:disabled { background: #8c959f; cursor: not-allowed; box-shadow: none; }
+
+    .btn-secondary {
+      width: 100%;
+      background: #2da44e;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { background: #2c974b; }
+
+    /* Photo Upload Area */
+    .photo-area {
+      border: 2px dashed #d0d7de;
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 12px;
+      background: #fafbfc;
+    }
+    .photo-preview { max-width: 100%; max-height: 180px; border-radius: 4px; margin-top: 10px; display: none; }
+
+    /* Site Knowledge Teaching */
+    .sk-card { border-top: 3px solid #2da44e; }
+    .sk-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+      margin-bottom: 8px;
+    }
+    .preset-pill {
+      display: inline-block;
+      font-size: 11px;
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      padding: 4px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-bottom: 6px;
+      color: #0969da;
+    }
+
+    .status-banner {
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .status-banner.resolved { background: #dafbe1; color: #1a7f37; border: 1px solid #4ac26b; }
+    .status-banner.waiting { background: #fff8c5; color: #7d4e00; border: 1px solid #d4a72c; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="badge">PD</span>
+      <span class="brand-title">Operator Field Companion</span>
+    </div>
+    <div style="font-size:12px; color:var(--text-muted);">
+      <span class="live-dot"></span> Plant Online
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Plant Context Card -->
+    <div class="card">
+      <div class="card-header">
+        <span>Field Context / Cooling Water</span>
+        <span>Unit P-101</span>
+      </div>
+      <div class="card-body">
+        <div class="tele-grid">
+          <div class="tele-item">
+            <span>FT-101 Flow</span>
+            <strong id="opFlow">-- m³/h</strong>
+          </div>
+          <div class="tele-item">
+            <span>P-101 Head</span>
+            <strong id="opPress">-- bar</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Work Order Card -->
+    <div class="card wo-card" id="woCard">
+      <div class="card-header">
+        <span id="woType">ACTIVE FIELD WORK ORDER</span>
+        <span id="woStatus" style="color:var(--accent);">PENDING</span>
+      </div>
+      <div class="card-body" id="woBody">
+        <div style="text-align:center; padding:20px; color:var(--text-muted);">
+          No active work order. Waiting for ADK agent instructions...
+        </div>
+      </div>
+    </div>
+
+    <!-- Teach the Plant to the Agent -->
+    <div class="card sk-card">
+      <div class="card-header">
+        <span>Teach this plant to the agent (Durable Knowledge)</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">
+          Operator assertions become durable Site Knowledge fed to future ADK runs:
+        </p>
+        <span class="preset-pill" onclick="fillPreset('F-17', 'Access F-17 from the west maintenance aisle. East-side access is restricted while P-101 is running.')">
+          + F-17 aisle safety constraint
+        </span>
+        <span class="preset-pill" onclick="fillPreset('BV-104', 'BV-104 handwheel requires counter-clockwise rotation to open; check mechanical flag at 100%.')">
+          + BV-104 handwheel direction
+        </span>
+        <input type="text" id="skAsset" placeholder="Asset tag (e.g. F-17)" style="width:100%; padding:6px 10px; border:1px solid #d0d7de; border-radius:6px; font-size:12px; margin-bottom:6px;">
+        <textarea id="skText" class="sk-input" placeholder="Type explicit site fact from operator experience..."></textarea>
+        <button class="btn-action" style="padding:10px; font-size:13px; background:#2da44e;" onclick="teachKnowledge()">
+          Save Plant Fact to Agent Memory
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTask = null;
+
+    async function pollOperator() {
+      try {
+        // 1. Telemetry
+        const tRes = await fetch('/api/telemetry?last_n=1');
+        const tData = await tRes.json();
+        if (tData.latest) {
+          const l = tData.latest;
+          document.getElementById('opFlow').innerText = `${l.ft101_flow_m3h.toFixed(1)} m³/h`;
+          document.getElementById('opPress').innerText = `${l.p101_discharge_bar.toFixed(2)} bar`;
+        }
+
+        // 2. Incident & Task
+        const incRes = await fetch('/api/incidents?limit=1');
+        const incidents = await incRes.json();
+        if (incidents.length > 0) {
+          const inc = incidents[0];
+          if (inc.status === 'RESOLVED') {
+            renderResolved(inc);
+            return;
+          }
+          const taskRes = await fetch(`/api/incidents/${inc.id}/tasks`);
+          const tasks = await taskRes.json();
+          const open = tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'CANCELLED')[0];
+          renderTask(open, inc);
+        } else {
+          document.getElementById('woBody').innerHTML = `
+            <div style="text-align:center; padding:20px; color:var(--text-muted);">
+              Plant operating normally. No active incidents.
+            </div>
+          `;
+        }
+      } catch (e) {
+        console.error("Operator poll failed", e);
+      }
+    }
+
+    function renderTask(task, incident) {
+      currentTask = task;
+      const woBody = document.getElementById('woBody');
+      const woStatus = document.getElementById('woStatus');
+      const woType = document.getElementById('woType');
+
+      if (!task) {
+        woStatus.innerText = incident.status;
+        woBody.innerHTML = `
+          <div class="status-banner waiting">
+            ADK Planner evaluating evidence... Please wait.
+          </div>
+        `;
+        return;
+      }
+
+      woStatus.innerText = task.status;
+      woType.innerText = `${task.kind.toUpperCase()} WORK ORDER`;
+
+      const isManual = task.kind === 'manual_action';
+      const isAwaitingPhoto = task.status === 'AWAITING_PHOTO' || task.requires_final_photo;
+
+      let actionHtml = '';
+
+      if (isManual && !isAwaitingPhoto) {
+        actionHtml = `
+          <button class="btn-action" onclick="confirmAction('${task.id}')">
+            CONFIRM ${task.delta_pct > 0 ? '+' : ''}${task.delta_pct}% ${task.asset} MOVEMENT COMPLETED
+          </button>
+        `;
+      } else {
+        // Inspection or Final Position Photo
+        actionHtml = `
+          <div class="photo-area">
+            <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="previewPhoto(event)">
+            <button class="btn-action" onclick="document.getElementById('photoInput').click()">
+              📸 Take / Upload Evidence Photo
+            </button>
+            <button class="btn-secondary" onclick="uploadSimPhoto('${task.id}')">
+              ⚡ Capture from Field Camera (Simulator)
+            </button>
+            <img id="previewImg" class="photo-preview" />
+            <button id="submitPhotoBtn" class="btn-action" style="display:none; margin-top:10px; background:#2da44e;" onclick="uploadFilePhoto('${task.id}')">
+              Submit Photo for Gemini Vision Verification
+            </button>
+          </div>
+        `;
+      }
+
+      woBody.innerHTML = `
+        <span class="wo-badge">${task.asset} · ${task.capability}</span>
+        <div class="wo-title">${task.title}</div>
+        <div class="wo-rationale">${task.rationale || ''}</div>
+
+        ${task.access_note ? `
+          <div class="instruction-box" style="background:#eef9fd; border-color:#0969da;">
+            <strong>📍 Site Knowledge / Access Guidance:</strong><br/>
+            ${task.access_note}
+          </div>
+        ` : ''}
+
+        <div class="instruction-box">
+          <strong>Steps:</strong>
+          <ol>
+            ${(task.instructions || []).map(i => `<li>${i}</li>`).join('')}
+          </ol>
+        </div>
+
+        <div class="safety-box">
+          <strong>Safety Requirements:</strong>
+          ${(task.safety_notes || []).join('<br/>')}
+        </div>
+
+        ${actionHtml}
+      `;
+    }
+
+    function renderResolved(inc) {
+      document.getElementById('woStatus').innerText = 'RESOLVED';
+      document.getElementById('woBody').innerHTML = `
+        <div class="status-banner resolved">
+          ✓ INCIDENT RESOLVED<br/>
+          <span style="font-size:12px; font-weight:normal; margin-top:4px; display:block;">
+            ${inc.resolution || 'Recovery sustained. All plant parameters within operating boundaries.'}
+          </span>
+        </div>
+      `;
+    }
+
+    async function confirmAction(taskId) {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.innerText = "Applying & Sampling Telemetry...";
+      try {
+        await fetch(`/api/tasks/${taskId}/confirm`, { method: 'POST' });
+        pollOperator();
+      } catch (e) {
+        alert("Action failed: " + e);
+        btn.disabled = false;
+      }
+    }
+
+    async function uploadSimPhoto(taskId) {
+      const fd = new FormData();
+      fd.append('use_sim_camera', 'true');
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/evidence`, { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.evidence && data.evidence.vision) {
+          alert(`Gemini Vision classified: ${data.evidence.vision.status} (${data.evidence.vision.rationale})`);
+        }
+        pollOperator();
+      } catch (e) {
+        alert("Evidence upload failed: " + e);
+      }
+    }
+
+    let selectedFile = null;
+    function previewPhoto(event) {
+      const file = event.target.files[0];
+      if (file) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById('previewImg');
+          img.src = e.target.result;
+          img.style.display = 'block';
+          document.getElementById('submitPhotoBtn').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function uploadFilePhoto(taskId) {
+      if (!selectedFile) return;
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/evidence`, { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(`Gemini Vision classified: ${data.evidence.vision.status} (${data.evidence.vision.rationale})`);
+        selectedFile = null;
+        pollOperator();
+      } catch (e) {
+        alert("Upload error: " + e);
+      }
+    }
+
+    function fillPreset(asset, text) {
+      document.getElementById('skAsset').value = asset;
+      document.getElementById('skText').value = text;
+    }
+
+    async function teachKnowledge() {
+      const asset = document.getElementById('skAsset').value.trim();
+      const text = document.getElementById('skText').value.trim();
+      if (!asset || !text) {
+        alert("Please provide asset tag and site knowledge text.");
+        return;
+      }
+      try {
+        await fetch('/api/knowledge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asset, text, author: 'field-operator' })
+        });
+        alert(`Site knowledge stored! Future ADK planning contexts will incorporate this constraint.`);
+        document.getElementById('skText').value = '';
+      } catch (e) {
+        alert("Error saving knowledge: " + e);
+      }
+    }
+
+    setInterval(pollOperator, 1500);
+    pollOperator();
+  </script>
+</body>
+</html>
+
